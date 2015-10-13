@@ -1,13 +1,13 @@
 {
   "name": "fetchr",
-  "version": "0.4.8",
+  "version": "0.5.20",
   "description": "Fetchr augments Flux applications by allowing Flux stores to be used on server and client to fetch data",
   "main": "index.js",
   "browser": "./libs/fetcher.client.js",
   "scripts": {
-    "cover": "node node_modules/istanbul/lib/cli.js cover --dir artifacts -- ./node_modules/mocha/bin/_mocha tests/unit/ --recursive --reporter spec",
-    "lint": "./node_modules/.bin/jshint libs tests",
-    "test": "./node_modules/.bin/mocha tests/unit/ --recursive --reporter spec"
+    "cover": "istanbul cover --dir artifacts -- ./node_modules/mocha/bin/_mocha tests/unit/ --recursive --reporter spec",
+    "lint": "jshint libs tests",
+    "test": "mocha tests/unit/ --recursive --reporter spec"
   },
   "repository": {
     "type": "git",
@@ -22,18 +22,25 @@
   ],
   "dependencies": {
     "debug": "^2.0.0",
+    "es6-promise": "^3.0.2",
+    "fumble": "^0.1.0",
     "lodash": "^3.3.0",
-    "object-assign": "^2.0.0",
+    "object-assign": "^4.0.1",
     "xhr": "^2.0.0"
   },
   "devDependencies": {
-    "chai": "^2.0.0",
+    "body-parser": "^1.12.2",
+    "chai": "^3.0.0",
     "coveralls": "^2.11.1",
+    "express": "^4.12.3",
     "istanbul": "^0.3.2",
     "jshint": "^2.5.1",
     "mocha": "^2.0.1",
     "mockery": "^1.4.0",
-    "precommit-hook": "^1.0.2"
+    "pre-commit": "^1.0.0",
+    "qs": "^4.0.0",
+    "request": "^2.61.0",
+    "supertest": "^1.0.1"
   },
   "jshintConfig": {
     "node": true

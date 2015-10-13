@@ -13,17 +13,20 @@
  *   retry: retry related settings, such as retry interval amount (in ms), max_retries.
  *          Note that only retry only applies on GET.
  */
-var _ = require('lodash'),
+var _ = {
+        forEach: require('lodash/collection/forEach'),
+        some: require('lodash/collection/some'),
+        delay: require('lodash/function/delay'),
+        isNumber: require('lodash/lang/isNumber')
+    },
     DEFAULT_CONFIG = {
-        timeout: 3000,
         retry: {
             interval: 200,
-            max_retries: 2
+            max_retries: 0
         }
     },
     CONTENT_TYPE = 'Content-Type',
     TYPE_JSON = 'application/json',
-    TIMEOUT = 'timeout',
     METHOD_GET = 'GET',
     METHOD_PUT = 'PUT',
     METHOD_POST = 'POST',
@@ -38,8 +41,11 @@ if (!String.prototype.trim) {
   };
 }
 
-function normalizeHeaders(headers, method) {
+function normalizeHeaders(headers, method, isCors) {
     var normalized = {};
+    if (!isCors) {
+        normalized['X-Requested-With'] = 'XMLHttpRequest';
+    }
     var needContentType = (method === METHOD_PUT || method === METHOD_POST);
     _.forEach(headers, function (v, field) {
         if (field.toLowerCase() === 'content-type') {
@@ -83,7 +89,6 @@ function shouldRetry(method, config, statusCode) {
 
 function mergeConfig(config) {
     var cfg = {
-            timeout: DEFAULT_CONFIG.timeout,
             unsafeAllowRetry: config.unsafeAllowRetry || false,
             retry: {
                 interval: DEFAULT_CONFIG.retry.interval,
@@ -95,7 +100,8 @@ function mergeConfig(config) {
         maxRetries;
 
     if (config) {
-        timeout = parseInt(config.timeout, 10);
+        timeout = config.timeout || config.xhrTimeout;
+        timeout = parseInt(timeout, 10);
         if (_.isNumber(timeout) && timeout > 0) {
             cfg.timeout = timeout;
         }
@@ -123,8 +129,8 @@ function mergeConfig(config) {
 function doXhr(method, url, headers, data, config, callback) {
     var options, timeout;
 
+    headers = normalizeHeaders(headers, method, config.cors);
     config = mergeConfig(config);
-    headers = normalizeHeaders(headers, method);
     // use config.tmp to store temporary values
     config.tmp = config.tmp || {retry_counter: 0};
 
@@ -133,12 +139,13 @@ function doXhr(method, url, headers, data, config, callback) {
         method : method,
         timeout : timeout,
         headers: headers,
+        useXDR: config.useXDR,
         on : {
             success : function (err, response) {
                 callback(NULL, response);
             },
             failure : function (err, response) {
-                if (!shouldRetry(method, config, response.status)) {
+                if (!shouldRetry(method, config, response.statusCode)) {
                     callback(err);
                 } else {
                     _.delay(
@@ -161,20 +168,31 @@ function io(url, options) {
         method: options.method || METHOD_GET,
         timeout: options.timeout,
         headers: options.headers,
-        body: options.data
+        body: options.data,
+        useXDR: options.cors
     }, function (err, resp, body) {
         var status = resp.statusCode;
-        var errMessage;
+        var errMessage, errBody;
 
         if (!err && (status === 0 || (status >= 400 && status < 600))) {
             if (typeof body === 'string') {
-                errMessage = body;
+                try {
+                    errBody = JSON.parse(body);
+                    if (errBody.message) {
+                        errMessage = errBody.message;
+                    } else {
+                        errMessage = body;
+                    }
+                } catch(e) {
+                    errMessage = body;
+                }
             } else {
-                errMessage = status ? 'Error ' + status : 'Internal XMLHttpRequest Error';
+                errMessage = status ? 'Error ' + status : 'Internal Fetchr XMLHttpRequest Error';
             }
 
             err = new Error(errMessage);
             err.statusCode = status;
+            err.body = errBody || body;
             if (408 === status || 0 === status) {
                 err.timeout = options.timeout;
             }
@@ -183,6 +201,9 @@ function io(url, options) {
         resp.responseText = body;
 
         if (err) {
+            // getting detail info from xhr module 
+            err.rawRequest = resp.rawRequest;
+            err.url = resp.url;
             options.on.failure.call(null, err, resp);
         } else {
             options.on.success.call(null, null, resp);
@@ -203,8 +224,9 @@ module.exports = {
      * @param {Number} [config.timeout=3000] Timeout (in ms) for each request
      * @param {Object} config.retry   Retry config object.
      * @param {Number} [config.retry.interval=200]  The start interval unit (in ms).
-     * @param {Number} [config.retry.max_retries=2]   Nmber of max retries.
-     * @param {Function} callback The callback funciton, with two params (error, response)
+     * @param {Number} [config.retry.max_retries=2]   Number of max retries.
+     * @param {Boolean} [config.cors] Whether to enable CORS & use XDR on IE8/9.
+     * @param {Function} callback The callback function, with two params (error, response)
      */
     get : function (url, headers, config, callback) {
         doXhr(METHOD_GET, url, headers, NULL, config, callback);
@@ -218,8 +240,9 @@ module.exports = {
      * @param {Object} config  The config object. No retries for PUT.
      * @param {Number} [config.timeout=3000] Timeout (in ms) for each request
      * @param {Number} [config.retry.interval=200]  The start interval unit (in ms).
-     * @param {Number} [config.retry.max_retries=2]   Nmber of max retries.
-     * @param {Function} callback The callback funciton, with two params (error, response)
+     * @param {Number} [config.retry.max_retries=2]   Number of max retries.
+     * @param {Boolean} [config.cors] Whether to enable CORS & use XDR on IE8/9.
+     * @param {Function} callback The callback function, with two params (error, response)
      */
     put : function (url, headers, data, config, callback) {
         doXhr(METHOD_PUT, url, headers, data, config, callback);
@@ -234,8 +257,9 @@ module.exports = {
      * @param {Number} [config.timeout=3000] Timeout (in ms) for each request
      * @param {Boolean} [config.unsafeAllowRetry=false] Whether to allow retrying this post.
      * @param {Number} [config.retry.interval=200]  The start interval unit (in ms).
-     * @param {Number} [config.retry.max_retries=2]   Nmber of max retries.
-     * @param {Function} callback The callback funciton, with two params (error, response)
+     * @param {Number} [config.retry.max_retries=2]   Number of max retries.
+     * @param {Boolean} [config.cors] Whether to enable CORS & use XDR on IE8/9.
+     * @param {Function} callback The callback function, with two params (error, response)
      */
     post : function (url, headers, data, config, callback) {
         doXhr(METHOD_POST, url, headers, data, config, callback);
@@ -248,8 +272,9 @@ module.exports = {
      * @param {Object} config  The config object. No retries for DELETE.
      * @param {Number} [config.timeout=3000] Timeout (in ms) for each request
      * @param {Number} [config.retry.interval=200]  The start interval unit (in ms).
-     * @param {Number} [config.retry.max_retries=2]   Nmber of max retries.
-     * @param {Function} callback The callback funciton, with two params (error, response)
+     * @param {Number} [config.retry.max_retries=2]   Number of max retries.
+     * @param {Boolean} [config.cors] Whether to enable CORS & use XDR on IE8/9.
+     * @param {Function} callback The callback function, with two params (error, response)
      */
     'delete' : function (url, headers, config, callback) {
         doXhr(METHOD_DELETE, url, headers, NULL, config, callback);
