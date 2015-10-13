@@ -94,10 +94,12 @@ function mergeConfig(config) {
             retry: {
                 interval: DEFAULT_CONFIG.retry.interval,
                 max_retries: DEFAULT_CONFIG.retry.max_retries
-            }
+            },
+            enableRavenCatcher: DEFAULT_CONFIG.enableRavenCatcher
         }, // Performant-but-verbose way of cloning the default config as base
         timeout,
         interval,
+        enableRavenCatcher,
         maxRetries;
 
     if (config) {
