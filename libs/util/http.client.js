@@ -124,6 +124,10 @@ function mergeConfig(config) {
         if (config.tmp) {
             cfg.tmp = config.tmp;
         }
+
+        if (config.enableRavenCatcher) {
+            cfg.enableRavenCatcher = config.enableRavenCatcher;
+        }
     }
 
     return cfg;
