@@ -23,7 +23,8 @@ var _ = {
         retry: {
             interval: 200,
             max_retries: 0
-        }
+        },
+        enableRavenCatcher: false
     },
     CONTENT_TYPE = 'Content-Type',
     TYPE_JSON = 'application/json',
@@ -145,6 +146,10 @@ function doXhr(method, url, headers, data, config, callback) {
                 callback(NULL, response);
             },
             failure : function (err, response) {
+                if (config.enableRavenCatcher && window.Raven) {
+                    window.Raven.captureException(err, { response: response });
+                }
+
                 if (!shouldRetry(method, config, response.statusCode)) {
                     callback(err);
                 } else {
@@ -201,7 +206,7 @@ function io(url, options) {
         resp.responseText = body;
 
         if (err) {
-            // getting detail info from xhr module 
+            // getting detail info from xhr module
             err.rawRequest = resp.rawRequest;
             err.url = resp.url;
             options.on.failure.call(null, err, resp);
