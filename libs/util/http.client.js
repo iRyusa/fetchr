@@ -153,7 +153,8 @@ function doXhr(method, url, headers, data, config, callback) {
             },
             failure : function (err, response) {
                 if (config.enableRavenCatcher && window.Raven) {
-                    window.Raven.captureException(err, { apiResponse: response });
+                    var sentryResponse = { statusCode: response.statusCode, body: response.body, sessionDuration: response['session:duration'] }
+                    window.Raven.captureException(err, { apiResponse: sentryResponse });
                 }
 
                 if (!shouldRetry(method, config, response.statusCode)) {
