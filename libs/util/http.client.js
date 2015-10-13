@@ -154,7 +154,7 @@ function doXhr(method, url, headers, data, config, callback) {
             failure : function (err, response) {
                 if (config.enableRavenCatcher && window.Raven) {
                     var sentryResponse = { statusCode: response.statusCode, body: response.body }
-                    window.Raven.captureException(err, { apiResponse: sentryResponse });
+                    window.Raven.captureException(err, { apiResponse: JSON.stringify(sentryResponse)});
                 }
 
                 if (!shouldRetry(method, config, response.statusCode)) {
