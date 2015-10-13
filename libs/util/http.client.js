@@ -153,7 +153,7 @@ function doXhr(method, url, headers, data, config, callback) {
             },
             failure : function (err, response) {
                 if (config.enableRavenCatcher && window.Raven) {
-                    window.Raven.captureException(err, { response: response });
+                    window.Raven.captureException(err, { apiResponse: response });
                 }
 
                 if (!shouldRetry(method, config, response.statusCode)) {
