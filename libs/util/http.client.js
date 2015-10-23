@@ -152,8 +152,27 @@ function doXhr(method, url, headers, data, config, callback) {
                 callback(NULL, response);
             },
             failure : function (err, response) {
-                if (config.enableRavenCatcher && window.Raven) {
-                    var sentryResponse = { statusCode: response.statusCode, bodySize: response.body.length, url: response.url };
+                if (window.Raven) {
+                    var extra = {
+                      statusCode: response.statusCode,
+                      bodySize: bodySize,
+                      url: url,
+                    };
+
+                    if (data && data.requests && data.requests.g0) {
+                      var g0 = data.requests.g0;
+
+                      extra.resource = g0.resource
+                      extra.operation = g0.operation
+
+                      if (g0.body && g0.body.ID) {
+                        extra.resourceId = g0.body.ID;
+
+                        var bodyLength = JSON.stringify(g0.body).length;
+                        extra.bodyLength = bodyLength;
+                      }
+                    }
+
                     window.Raven.captureException(err, {extra: { apiResponse: sentryResponse, level: "fatal" }});
                 }
 
