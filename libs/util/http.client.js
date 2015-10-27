@@ -155,8 +155,7 @@ function doXhr(method, url, headers, data, config, callback) {
                 if (window.Raven) {
                     var extra = {
                       statusCode: response.statusCode,
-                      bodySize: bodySize,
-                      url: url,
+                      url: url
                     };
 
                     if (data && data.requests && data.requests.g0) {
