@@ -172,7 +172,8 @@ function doXhr(method, url, headers, data, config, callback) {
                       }
                     }
 
-                    window.Raven.captureException(err, {extra: { apiResponse: sentryResponse, level: "fatal" }});
+                    window.Raven.captureException(err, {extra: extra,  level: "fatal"});
+
                 }
 
                 if (!shouldRetry(method, config, response.statusCode)) {
